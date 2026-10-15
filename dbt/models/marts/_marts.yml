@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: fct_player_fixtures
+    description: >
+      One row per player per fixture his club played while he was registered there.
+      0-minute rows are kept and flagged with is_played; rolling metrics use played rows only.
+    columns:
+      - name: player_fixture_id
+        tests: [unique, not_null]
+      - name: team_id
+        tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_fpl__teams'), field: team_id}}

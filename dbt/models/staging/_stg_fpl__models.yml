@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: stg_fpl__player_fixture_stats
+    description: Per-fixture stats for every player, from the latest fetch.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [player_id, fixture_id]}
+    columns:
+      - name: player_id
+        tests: [not_null]
+      - name: fixture_id
+        tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_fpl__fixtures'), field: fixture_id}}
+      - name: minutes
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 130}}
+      - name: xg
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 10}}
+
+  - name: stg_fpl__fixtures
+    columns:
+      - name: fixture_id
+        tests: [unique, not_null]
+      - name: home_team_id
+        tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_fpl__teams'), field: team_id}}
+      - name: away_team_id
+        tests:
+          - not_null
+          - relationships: {arguments: {to: ref('stg_fpl__teams'), field: team_id}}
+
+  - name: stg_fpl__player_snapshots
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [snapshot_date, player_id]}
+    columns:
+      - name: position_id
+        tests:
+          - relationships: {arguments: {to: ref('stg_fpl__positions'), field: position_id}}
+      - name: status
+        tests:
+          - accepted_values: {arguments: {values: [a, d, i, s, u, n]}}
+
+  - name: stg_fpl__teams
+    columns:
+      - name: team_id
+        tests: [unique, not_null]
+
+  - name: stg_fpl__positions
+    columns:
+      - name: position_id
+        tests: [unique, not_null]
+
+  - name: stg_fpl__gameweeks
+    columns:
+      - name: gameweek
+        tests: [unique, not_null]
