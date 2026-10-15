@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python ingest/fetch.py:*)",
+      "Bash(../.venv/Scripts/dbt build:*)",
+      "Bash(../.venv/Scripts/dbt run:*)",
+      "Bash(../.venv/Scripts/dbt test:*)",
+      "Bash(../.venv/Scripts/dbt compile:*)",
+      "Bash(../.venv/Scripts/dbt show:*)",
+      "Bash(../.venv/Scripts/dbt ls:*)",
+      "Bash(../.venv/Scripts/dbt parse:*)",
+      "Bash(../.venv/Scripts/dbt deps:*)"
+    ],
+    "deny": [
+      "Bash(*--target prod*)",
+      "Bash(*-t prod*)"
+    ]
+  }
+}

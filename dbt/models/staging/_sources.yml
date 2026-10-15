@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: fpl_raw
+    description: >
+      Raw FPL API responses written by ingest/fetch.py, one dt=YYYY-MM-DD folder per run.
+      Every source reads all dates; staging decides which date to keep.
+    tables:
+      - name: bootstrap_static
+        description: Players, teams and gameweeks as of each fetch. Current state only.
+        meta:
+          external_location: >-
+            read_json('{{ var("raw_path") }}/*/bootstrap_static.json',
+                      filename = true, hive_partitioning = true, maximum_object_size = 104857600)
+      - name: fixtures
+        description: Every fixture of the season as of each fetch.
+        meta:
+          external_location: >-
+            read_json('{{ var("raw_path") }}/*/fixtures.json',
+                      filename = true, hive_partitioning = true, maximum_object_size = 104857600)
+      - name: element_summaries
+        description: One row per player per fetch; `history` holds one struct per fixture played.
+        meta:
+          external_location: >-
+            read_json('{{ var("raw_path") }}/*/element_summaries.jsonl',
+                      format = 'newline_delimited', filename = true, hive_partitioning = true)

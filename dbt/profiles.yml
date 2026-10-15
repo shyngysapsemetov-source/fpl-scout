@@ -1,0 +1,14 @@
+# No secrets here, so it lives in the repo. Run dbt with --profiles-dir . from this folder.
+#   dev  - your local file; rebuild and break it freely
+#   prod - built only by CI from main, then published for the app
+fpl_scout:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/dev.duckdb
+      threads: 4
+    prod:
+      type: duckdb
+      path: ../data/prod.duckdb
+      threads: 4
