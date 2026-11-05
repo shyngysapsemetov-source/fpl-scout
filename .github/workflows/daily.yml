@@ -6,10 +6,18 @@ on:
   workflow_dispatch:
   pull_request:
 
+# One prod writer at a time: a manual run and the schedule must not load the same date at once.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && github.ref || 'prod' }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 30   # also caps MotherDuck compute per day (D22)
+    env:
+      # Only prod runs (main, not PRs) get the token, so PR code can never reach prod.
+      MOTHERDUCK_TOKEN: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.MOTHERDUCK_TOKEN || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,8 +30,8 @@ jobs:
         run: echo "TARGET=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'prod' || 'dev' }}" >> "$GITHUB_ENV"
       - name: Fetch FPL API
         # auto: light pull, or full when a new gameweek is data_checked (D10, D18). PRs pull a
-        # 40-player sample into data/raw_sample (D21). Until prod is on MotherDuck (D14) the
-        # runner starts empty, so auto always does a full pull here.
+        # 40-player sample into data/raw_sample (D21). Prod reads the trigger from MotherDuck;
+        # dev starts empty in the runner, so it always does a full (sample) pull.
         run: python ingest/fetch.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--limit 40' || '' }}
       - name: Load raw
         run: python ingest/load.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--raw data/raw_sample' || '' }}
@@ -32,3 +40,6 @@ jobs:
         run: |
           dbt deps --profiles-dir .
           dbt build --profiles-dir . --target "$TARGET"
+      - name: Storage guard
+        # Fail above 5 GB, half of MotherDuck Lite's free 10 GB (D22).
+        run: python ingest/storage_guard.py --target "$TARGET" --max-gb 5

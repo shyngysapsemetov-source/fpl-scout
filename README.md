@@ -21,8 +21,9 @@ FPL API ──► ingest/fetch.py ──► data/raw/dt=YYYY-MM-DD/ ──► in
   history is the sequence of daily snapshots.
 - **Load:** each day's JSON goes as-is into a `raw` schema, one snapshot per table per date. A
   rerun replaces that date.
-- **Transform:** dbt Core on DuckDB. `dev` builds locally. `prod` is built only by CI from
-  `main`.
+- **Transform:** dbt Core on DuckDB. `dev` builds into a local file. `prod` lives on
+  [MotherDuck](https://motherduck.com) (raw snapshots and models in one database) and is
+  built only by CI from `main`.
 
 ## Run it
 
