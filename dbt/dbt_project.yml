@@ -11,8 +11,8 @@ target-path: target
 clean-targets: [target, dbt_packages]
 
 vars:
-  # Folder the ingest job writes to, relative to this dbt project.
-  raw_path: "../data/raw"
+  # Season key for seeds, matching the API's static_content_url (e.g. .../2026_27/).
+  season: "2026_27"
 
 models:
   fpl_scout:

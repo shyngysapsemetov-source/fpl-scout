@@ -1,0 +1,11 @@
+season,position_code,rule,threshold,verified
+2026_27,GKP,long_play_minutes,60,false
+2026_27,DEF,long_play_minutes,60,false
+2026_27,MID,long_play_minutes,60,false
+2026_27,FWD,long_play_minutes,60,false
+2026_27,GKP,saves_per_point,3,false
+2026_27,GKP,goals_conceded_per_point,2,false
+2026_27,DEF,goals_conceded_per_point,2,false
+2026_27,DEF,defensive_contribution_min,10,false
+2026_27,MID,defensive_contribution_min,12,false
+2026_27,FWD,defensive_contribution_min,12,false

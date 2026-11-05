@@ -1,0 +1,24 @@
+version: 2
+
+seeds:
+  - name: scoring_thresholds
+    description: >
+      Scoring thresholds the API doesn't publish (D27). The point values come from
+      stg_fpl__scoring_rules; these come from the official FPL rules page. One row per season,
+      position and rule. `verified` turns true once a value has been checked against that
+      season's rules. Positions a rule doesn't apply to have no row.
+    config:
+      column_types: {threshold: integer, verified: boolean}
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [season, position_code, rule]}
+    columns:
+      - name: position_code
+        tests:
+          - accepted_values: {arguments: {values: [GKP, DEF, MID, FWD]}}
+      - name: rule
+        tests:
+          - accepted_values:
+              arguments:
+                values: [long_play_minutes, saves_per_point, goals_conceded_per_point,
+                         defensive_contribution_min]
