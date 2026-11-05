@@ -11,13 +11,16 @@ the app are not built yet.
 ## How it works
 
 ```
-FPL API ──► ingest/fetch.py ──► data/raw/dt=YYYY-MM-DD/ ──► dbt (DuckDB) ──► Streamlit app
-            daily, GitHub Actions   raw JSON, one folder per day       dev: local, prod: CI only
+FPL API ──► ingest/fetch.py ──► data/raw/dt=YYYY-MM-DD/ ──► ingest/load.py ──► raw schema ──► dbt ──► Streamlit app
+            daily, GitHub Actions   JSON files, one per day     append per date    DuckDB      dev: local, prod: CI only
 ```
 
-- **Ingest:** a daily pull of every player, team, fixture and per-fixture history. The
-  per-fixture stats are complete for the season on every run. Price and ownership exist only as
-  current values, so their history is the sequence of daily folders.
+- **Ingest:** a light daily pull (players, teams, fixtures: two calls). Once a gameweek's data
+  is checked, a full pull adds every player's per-fixture history (~800 calls). Each full pull
+  is complete for the season. Price and ownership exist only as current values, so their
+  history is the sequence of daily snapshots.
+- **Load:** each day's JSON goes as-is into a `raw` schema, one snapshot per table per date. A
+  rerun replaces that date.
 - **Transform:** dbt Core on DuckDB. `dev` builds locally. `prod` is built only by CI from
   `main`.
 
@@ -25,7 +28,8 @@ FPL API ──► ingest/fetch.py ──► data/raw/dt=YYYY-MM-DD/ ──► db
 
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # .venv/bin on macOS/Linux
-.venv/Scripts/python ingest/fetch.py            # ~6 min for all players; --limit 5 to test
+.venv/Scripts/python ingest/fetch.py            # light, or ~6 min full; --mode full|light, --limit 5
+.venv/Scripts/python ingest/load.py             # today's folder into data/dev.duckdb; --all to backfill
 cd dbt && ../.venv/Scripts/dbt build --profiles-dir .
 ```
 

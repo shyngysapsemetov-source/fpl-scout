@@ -17,11 +17,18 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Pick target
+        # Prod only from main outside PRs; everything else builds dev.
+        run: echo "TARGET=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'prod' || 'dev' }}" >> "$GITHUB_ENV"
       - name: Fetch FPL API
-        # PRs fetch a small sample; the scheduled run pulls every player.
-        run: python ingest/fetch.py ${{ github.event_name == 'pull_request' && '--limit 40' || '' }}
+        # auto: light pull, or full when a new gameweek is data_checked (D10, D18). PRs pull a
+        # 40-player sample into data/raw_sample (D21). Until prod is on MotherDuck (D14) the
+        # runner starts empty, so auto always does a full pull here.
+        run: python ingest/fetch.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--limit 40' || '' }}
+      - name: Load raw
+        run: python ingest/load.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--raw data/raw_sample' || '' }}
       - name: dbt build
         working-directory: dbt
         run: |
           dbt deps --profiles-dir .
-          dbt build --profiles-dir . --target ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'prod' || 'dev' }}
+          dbt build --profiles-dir . --target "$TARGET"

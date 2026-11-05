@@ -14,7 +14,8 @@ to it as they happen ([ATTR-3]).
 
 ## Commands (from the repo root, Git Bash)
 
-- Fetch: `.venv/Scripts/python ingest/fetch.py` (`--limit 5` for a quick test)
+- Fetch: `.venv/Scripts/python ingest/fetch.py` (auto light/full; `--mode full --limit 5` for a quick test, written to `data/raw_sample`)
+- Load: `.venv/Scripts/python ingest/load.py` (today's folder into `raw`; `--all` to backfill)
 - Build: `cd dbt && ../.venv/Scripts/dbt build --profiles-dir .`
 - The agent loop: run `dbt build` and fix failures. **Stop after 3 failed attempts on the same
   error** and report. Never weaken or delete a test to make it pass.
