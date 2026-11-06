@@ -54,3 +54,24 @@ models:
       - name: points_per_match_season_rank
         tests:
           - dbt_utils.accepted_range: {arguments: {min_value: 1}}
+
+  - name: fct_team_fixture_expectations
+    description: >
+      One row per team per fixture, past and upcoming (D38): fixture difficulty split into
+      expected goals for and against, plus clean-sheet probability. Ratings are taken as of
+      just before kickoff, so past rows are honest out-of-sample predictions.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [season, fixture_id, team_code]}
+    columns:
+      - name: expected_goals_for
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 0.1, max_value: 5}}
+      - name: expected_goals_against
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 0.1, max_value: 5}}
+      - name: clean_sheet_prob
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 1}}

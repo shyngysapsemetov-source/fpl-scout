@@ -40,3 +40,7 @@ From the public [Fantasy Premier League](https://fantasy.premierleague.com) API,
 unofficial and has no published licence. The pipeline fetches politely (one request at a time,
 with a pause between calls). The repo does not republish raw data; the app shows derived stats
 only.
+
+Past seasons (2023/24 to 2025/26), used for team ratings and model training, come from
+[vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League) (MIT).
+They are loaded at build time and not republished.

@@ -35,6 +35,9 @@ jobs:
         run: python ingest/fetch.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--limit 40' || '' }}
       - name: Load raw
         run: python ingest/load.py --target "$TARGET" ${{ github.event_name == 'pull_request' && '--raw data/raw_sample' || '' }}
+      - name: Load past seasons
+        # Archive seasons for ratings and the model (D43, D49); skipped once loaded.
+        run: python ingest/fetch_history.py --target "$TARGET"
       - name: dbt build
         working-directory: dbt
         run: |

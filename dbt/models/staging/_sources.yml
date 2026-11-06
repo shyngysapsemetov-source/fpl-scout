@@ -25,3 +25,11 @@ sources:
         tests:
           - dbt_utils.unique_combination_of_columns:
               arguments: {combination_of_columns: [dt, element_id]}
+      - name: history_player_gw
+        description: >
+          Past seasons from the vaastav/Fantasy-Premier-League archive (D43, D49): one row per
+          player per fixture, every column text as landed. Loaded by ingest/fetch_history.py.
+      - name: history_teams
+        description: Archive teams per past season; `code` is FPL's stable cross-season team id.
+      - name: history_fixtures
+        description: Archive fixtures per past season.

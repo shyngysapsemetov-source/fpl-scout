@@ -4,3 +4,4 @@ requests>=2.32
 # MotherDuck supports a DuckDB version only after a lag; 2.0.0 broke prod on 5 Nov.
 # Bump only after MotherDuck lists the new version as supported.
 duckdb==1.5.6
+pandas==2.3.3

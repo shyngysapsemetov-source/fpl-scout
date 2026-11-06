@@ -11,6 +11,7 @@ unnested as (
 
 select
     (t->>'id')::int                                         as team_id,
+    (t->>'code')::int                                       as team_code,  -- stable across seasons
     (t->>'name')::varchar                                   as team_name,
     (t->>'short_name')::varchar                             as team_short_name,
     (t->>'strength')::int                                   as strength_overall,
