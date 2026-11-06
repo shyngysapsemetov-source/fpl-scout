@@ -12,3 +12,45 @@ models:
         tests:
           - not_null
           - relationships: {arguments: {to: ref('stg_fpl__teams'), field: team_id}}
+
+  - name: fct_player_rolling
+    description: >
+      One row per player per fixture (D35), with form windows (last 5, last 10, season) over
+      matches played only (D11, D28) and availability windows over every team fixture (D34).
+      Predictors are per 90 as sum / sum(minutes) * 90 (D29, D30); points are per match played.
+      On a 0-minute row, form carries forward from the last played match.
+    columns:
+      - name: player_fixture_id
+        tests:
+          - unique
+          - not_null
+          - relationships: {arguments: {to: ref('fct_player_fixtures'), field: player_fixture_id}}
+      - name: matches_played_l5
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 1, max_value: 5}}
+      - name: matches_played_l10
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 1, max_value: 10}}
+      - name: played_share_l5
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 1}}
+      - name: team_fixtures_l5
+        tests:
+          - not_null
+          - dbt_utils.accepted_range: {arguments: {min_value: 1, max_value: 5}}
+
+  - name: mart_player_current
+    description: >
+      One row per player (D35): latest window values, current price and status, and ranks
+      within position for season and last 5 (D31, D32). Eligibility: season minutes >= 40% of
+      the team minutes while registered (D13, D33). Ranks are null for ineligible players and
+      for metrics a position doesn't score for.
+    columns:
+      - name: player_id
+        tests: [unique, not_null]
+      - name: total_points_season
+        description: Season total FPL points (D36). Sums over played matches; 0-minute rows add 0.
+      - name: points_per_match_season_rank
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 1}}
