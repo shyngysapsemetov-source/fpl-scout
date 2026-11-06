@@ -51,6 +51,14 @@ models:
         tests: [unique, not_null]
       - name: total_points_season
         description: Season total FPL points (D36). Sums over played matches; 0-minute rows add 0.
+      - name: xg_per90_season_pctl
+        description: Percentile 0-100 within position among eligible players (D61). Higher is better.
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 100}}
+      - name: xgc_per90_season_pctl
+        description: Inverted, so a high percentile means few xG conceded. GKP and DEF only.
+        tests:
+          - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 100}}
       - name: points_per_match_season_rank
         tests:
           - dbt_utils.accepted_range: {arguments: {min_value: 1}}
@@ -75,3 +83,17 @@ models:
       - name: clean_sheet_prob
         tests:
           - dbt_utils.accepted_range: {arguments: {min_value: 0, max_value: 1}}
+
+  - name: fct_team_next_fixtures
+    description: >
+      Upcoming fixtures in the next 5 gameweeks, current season only, one row per team per
+      fixture. Every next-fixtures view reads this model.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [team_code, fixture_id]}
+    columns:
+      - name: kickoff_at
+        tests:
+          # Guards the cross-season bug: an upcoming fixture can't have kicked off yet.
+          - dbt_utils.expression_is_true:
+              arguments: {expression: "> (select max(kickoff_at) from {{ ref('stg_fpl__fixtures') }} where is_finished)"}

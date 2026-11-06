@@ -22,3 +22,14 @@ seeds:
               arguments:
                 values: [long_play_minutes, saves_per_point, goals_conceded_per_point,
                          defensive_contribution_min]
+
+  - name: team_colours
+    description: >
+      Club kit colours for the app's team badges (D65), keyed on FPL's stable team code.
+      Display only; approximate primary/secondary kit colours. A promoted club needs a row.
+    columns:
+      - name: team_code
+        tests: [unique, not_null]
+      - name: primary_colour
+        tests: [not_null]
+

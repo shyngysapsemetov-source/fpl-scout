@@ -22,5 +22,9 @@ select
     (e->>'transfers_in_event')::int                         as transfers_in_event,
     (e->>'transfers_out_event')::int                        as transfers_out_event,
     (e->>'total_points')::int                               as total_points,
-    (e->>'minutes')::int                                    as season_minutes
+    (e->>'minutes')::int                                    as season_minutes,
+    -- Set-piece duty, 1 = first choice; null = not on the list (D81).
+    (e->>'penalties_order')::int                            as penalties_order,
+    (e->>'corners_and_indirect_freekicks_order')::int       as corners_order,
+    (e->>'direct_freekicks_order')::int                     as direct_freekicks_order
 from unnested
