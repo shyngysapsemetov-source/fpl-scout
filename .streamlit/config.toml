@@ -1,0 +1,16 @@
+# Local-only app (D53): bind to this machine, never the network.
+[server]
+address = "localhost"
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+# Light theme only for the thin app; dark mode is a later, validated pass.
+[theme]
+base = "light"
+backgroundColor = "#f9f9f7"
+secondaryBackgroundColor = "#fcfcfb"
+textColor = "#0b0b0b"
+primaryColor = "#2a78d6"
+font = "sans serif"

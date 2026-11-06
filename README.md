@@ -34,6 +34,17 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # .venv/
 cd dbt && ../.venv/Scripts/dbt build --profiles-dir .
 ```
 
+App (local only, binds to localhost) and the agent CLI:
+
+```bash
+.venv/Scripts/pip install -r app/requirements.txt
+.venv/Scripts/streamlit run app/app.py                     # scout report, rankings, compare, fixtures
+FPL_SCOUT_DB=data/dev.duckdb .venv/Scripts/python agent/scout.py rankings --pos MID
+```
+
+`agent/scout.py` prints the app's views as text for an AI agent and logs every call. It reads a
+frozen snapshot, so an experiment never sees data from after its deadline.
+
 ## Data
 
 From the public [Fantasy Premier League](https://fantasy.premierleague.com) API, which is
