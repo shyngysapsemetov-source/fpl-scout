@@ -8,8 +8,8 @@ where mu_v is the league's average xG at that venue (home or away), attack > 1 m
 creates more than average, and defence > 1 means it concedes more (it's a weakness). One
 rating per side per team; the home edge is league-wide (mu_home / mu_away).
 
-Each fixture is rated only from matches that kicked off before it, so nothing leaks into a
-backtest. Within the season, a team's matches are weighted 0.5 ** (age / HALF_LIFE), with age
+Each fixture is rated only from matches that kicked off before its gameweek's first kickoff
+(`rated_at`, the deadline view), so nothing from its own gameweek or later leaks in (D103). Within the season, a team's matches are weighted 0.5 ** (age / HALF_LIFE), with age
 counted in that team's own matches back from the latest (D44). Last season's final ratings act
 as a prior worth PRIOR_MATCHES matches (D46); promoted teams start from the average of last
 season's relegated teams. The first season loaded has a neutral prior of 1.0. Ratings are
@@ -104,19 +104,19 @@ def model(dbt, session):
 
         season_matches = matches[matches.season == season]
         cache = {}
-        for kickoff in sched.kickoff_at.unique():
-            if kickoff not in cache:
-                played = season_matches[season_matches.kickoff_at < kickoff].copy()
+        for cutoff in sched.rated_at.unique():
+            if cutoff not in cache:
+                played = season_matches[season_matches.kickoff_at < cutoff].copy()
                 played["weight"] = weights(played) if len(played) else []
-                cache[kickoff] = fit(played, teams, prior_att, prior_def, prior_mu) + (
+                cache[cutoff] = fit(played, teams, prior_att, prior_def, prior_mu) + (
                     played.groupby("team_code").size(),)
-            att, dfn, mu_h, mu_a, n = cache[kickoff]
-            for f in sched[sched.kickoff_at == kickoff].itertuples():
+            att, dfn, mu_h, mu_a, n = cache[cutoff]
+            for f in sched[sched.rated_at == cutoff].itertuples():
                 for code, opp, is_home in ((f.home_code, f.away_code, True),
                                            (f.away_code, f.home_code, False)):
                     rows.append({
                         "season": season, "fixture_id": f.fixture_id,
-                        "kickoff_at": f.kickoff_at, "team_code": code,
+                        "kickoff_at": f.kickoff_at, "rated_at": f.rated_at, "team_code": code,
                         "opponent_code": opp, "is_home": is_home,
                         "matches_rated": int(n.get(code, 0)),
                         "attack": att[code], "defence": dfn[code],

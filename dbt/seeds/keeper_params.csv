@@ -1,7 +1,7 @@
 parameter,value,fitted_on
-p_start_if_started_last,0.899324,2023-24+2024-25
-p_start_if_not,0.031385,2023-24+2024-25
-bonus_intercept,0.244381,2023-24+2024-25
-bonus_cs_slope,-0.022666,2023-24+2024-25
-saves_intercept,-0.126313,2023-24+2024-25
-saves_xga_slope,0.547664,2023-24+2024-25
+p_start_if_started_last,0.898580,2023-24+2024-25
+p_start_if_not,0.031825,2023-24+2024-25
+bonus_intercept,0.247412,2023-24+2024-25
+bonus_cs_slope,-0.035441,2023-24+2024-25
+saves_intercept,-0.127507,2023-24+2024-25
+saves_xga_slope,0.548752,2023-24+2024-25

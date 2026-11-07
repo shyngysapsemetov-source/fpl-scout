@@ -52,3 +52,7 @@ select
     (h->>'transfers_out')::int                              as transfers_out,
     (h->>'modified')::boolean                               as is_modified
 from unnested
+{%- if var('as_of_gw', none) %}
+-- Replay (D103): as of the GW{{ var('as_of_gw') }} deadline, later matches haven't happened.
+where (h->>'round')::int < {{ var('as_of_gw') }}
+{%- endif %}

@@ -1,3 +1,8 @@
+{%- set n = var('as_of_gw', none) %}
+{%- if n %}
+-- Replay (D103): as of the GW{{ n }} deadline, GW{{ n }} onward is unplayed.
+with base as (
+{%- endif %}
 with latest as (
     select payload
     from {{ source('fpl_raw', 'fixtures') }}
@@ -22,3 +27,12 @@ select
     (f->>'started')::boolean                                as is_started,
     (f->>'finished')::boolean                               as is_finished
 from unnested
+{%- if n %}
+)
+select * replace (
+    case when gameweek >= {{ n }} then null else home_score end as home_score,
+    case when gameweek >= {{ n }} then null else away_score end as away_score,
+    is_started and gameweek < {{ n }}                           as is_started,
+    is_finished and gameweek < {{ n }}                          as is_finished)
+from base
+{%- endif %}

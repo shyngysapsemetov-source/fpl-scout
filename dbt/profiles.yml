@@ -9,6 +9,11 @@ fpl_scout:
       type: duckdb
       path: ../data/dev.duckdb
       threads: 4
+    # Replay (D103): an as-of rebuild in its own file; agent/replay.py sets FPL_REPLAY_DB.
+    replay:
+      type: duckdb
+      path: "{{ env_var('FPL_REPLAY_DB', '../data/agent/replay/dev.duckdb') }}"
+      threads: 4
     prod:
       type: duckdb
       path: "md:fpl_scout"

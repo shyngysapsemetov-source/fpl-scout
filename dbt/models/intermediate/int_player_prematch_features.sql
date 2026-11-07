@@ -51,17 +51,19 @@ own as (
         -- D100: did he start his last fixture of the season? (null before his first)
         last_value(starts ignore nulls) over prior                        as started_last
     from rows
-    window prior as (partition by player_key order by kickoff_at, fixture_id
-                     rows between unbounded preceding and 1 preceding),
-           last5 as (partition by player_key order by kickoff_at, fixture_id
-                     rows between 5 preceding and 1 preceding)
+    -- D103: only earlier GAMEWEEKS count (the deadline view): a double gameweek's second
+    -- match doesn't see the first. last5 = his last 5 gameweeks.
+    window prior as (partition by player_key order by gameweek
+                     range between unbounded preceding and 1 preceding),
+           last5 as (partition by player_key order by gameweek
+                     range between 5 preceding and 1 preceding)
 ),
 
 -- Position totals per kickoff, then cumulative; the as-of join below takes the latest
 -- kickoff strictly before each fixture.
 pos_by_kickoff as (
     select
-        season, position_code, kickoff_at,
+        season, position_code, gameweek,
         count(minutes)                                                    as fixtures,
         count(*) filter (where played)                                    as matches,
         sum(starts)                                                       as starts,
@@ -82,13 +84,13 @@ pos_by_kickoff as (
 
 pos_cum as (
     select
-        season, position_code, kickoff_at,
+        season, position_code, gameweek,
         {%- for c in ['fixtures', 'matches', 'starts', 'early_subs', 'sub_apps', 'minutes',
                       'dc_matches', 'dc_hits', 'points'] + per90 %}
         sum({{ c }}) over w as {{ c }}{{ "," if not loop.last }}
         {%- endfor %}
     from pos_by_kickoff
-    window w as (partition by season, position_code order by kickoff_at)
+    window w as (partition by season, position_code order by gameweek)
 ),
 
 -- Full-season position rates: the stand-in prior before a season has any data.
@@ -151,7 +153,7 @@ with_priors as (
     left join season_order so on so.season = o.season
     asof left join pos_cum pc
         on pc.season = o.season and pc.position_code = o.position_code
-       and o.kickoff_at > pc.kickoff_at
+       and o.gameweek > pc.gameweek
     left join pos_season ps on ps.season = coalesce(so.prev_season, o.season)
                            and ps.position_code = o.position_code
     left join prev_player pp on pp.season = so.prev_season and pp.player_code = o.player_code

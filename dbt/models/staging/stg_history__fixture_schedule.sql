@@ -8,6 +8,7 @@ select
     f.season,
     f.id::int                           as fixture_id,
     f.kickoff_time::timestamptz         as kickoff_at,
+    nullif(f.event, '')::int            as gameweek,
     h.team_code                         as home_code,
     a.team_code                         as away_code,
     f.finished = 'True'                 as is_finished

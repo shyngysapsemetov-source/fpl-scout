@@ -1,3 +1,8 @@
+{%- set n = var('as_of_gw', none) %}
+{%- if n %}
+-- Replay (D103): as of the GW{{ n }} deadline.
+with base as (
+{%- endif %}
 with latest as (
     select payload
     from {{ source('fpl_raw', 'bootstrap_static') }}
@@ -19,3 +24,13 @@ select
     (e->>'is_next')::boolean                                as is_next,
     (e->>'average_entry_score')::int                        as average_entry_score
 from unnested
+{%- if n %}
+)
+select * replace (
+    is_finished and gameweek < {{ n }}                          as is_finished,
+    is_data_checked and gameweek < {{ n }}                      as is_data_checked,
+    gameweek = {{ n }} - 1                                      as is_current,
+    gameweek = {{ n }}                                          as is_next,
+    case when gameweek >= {{ n }} then null else average_entry_score end as average_entry_score)
+from base
+{%- endif %}
