@@ -22,6 +22,8 @@ DB = ROOT / "data" / "dev.duckdb"
 GRID = {"xpts_k_start": [1, 2, 3], "xpts_form_blend": [0.0, 0.3, 0.5], "xpts_prev_weight": [0, 3, 6]}
 # D93: fading previous-season prior (the other parameters stay at their locked values).
 GRID_FADE = {"xpts_prev_w0": [0, 6, 10, 15], "xpts_prev_fade": [6, 10, 15]}
+# D96: shrinkage strength, tuned for top-pick accuracy (points captured by the top 11).
+GRID_TOPPICK = {"xpts_k": [1, 2, 3], "xpts_k_min": [90, 180, 270]}
 
 
 def build(cfg):
@@ -42,6 +44,15 @@ def score(season):
         where e.season = ? and not e.is_upcoming""", [season]).df()
     con.close()
     out = {}
+    # Points captured: actual points of the top 11 by xPts / of the best possible 11, per GW.
+    cap = df.groupby("gameweek").apply(
+        lambda g: g.nlargest(11, "xpts").actual_points.sum() / g.nlargest(11, "actual_points").actual_points.sum(),
+        include_groups=False)
+    top20 = df.groupby("gameweek").apply(lambda g: g.nlargest(20, "xpts").actual_points.mean(),
+                                         include_groups=False)
+    out["captured_top11"] = cap.mean()
+    out["captured_top11_early"] = cap[cap.index <= 9].mean()
+    out["top20_avg_points"] = top20.mean()
     for name, d in (("all", df), ("starters", df[df.likely_starter.fillna(False)]),
                     ("early", df[df.gameweek <= 9]), ("late", df[df.gameweek >= 10])):
         out[f"{name}_mae"] = (d.xpts - d.actual_points).abs().mean()
@@ -56,11 +67,11 @@ def score(season):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--season", default="2024-25")
-    ap.add_argument("--out", default=str(ROOT / "data" / "agent" / "xpts_tuning_fade.csv"))
-    ap.add_argument("--grid", choices=["base", "fade"], default="fade")
+    ap.add_argument("--out", default=str(ROOT / "data" / "agent" / "xpts_tuning_toppick.csv"))
+    ap.add_argument("--grid", choices=["base", "fade", "toppick"], default="toppick")
     a = ap.parse_args()
     rows = []
-    grid = GRID_FADE if a.grid == "fade" else GRID
+    grid = {"fade": GRID_FADE, "toppick": GRID_TOPPICK, "base": GRID}[a.grid]
     for values in itertools.product(*grid.values()):
         cfg = dict(zip(grid, values))
         build(cfg)

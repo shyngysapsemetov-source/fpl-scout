@@ -10,8 +10,8 @@
 -- With xpts_form_blend > 0, start rate and per-90 rates blend in his last 5 fixtures, as his
 -- season level plus a damped deviation (the D72 rule): (1 - b) * season + b * last5.
 -- Tuning parameters (D91), set with --vars; defaults are v0:
-{%- set k = 3 %}
-{%- set k_min = 270 %}
+{%- set k = var('xpts_k', 3) %}          {#- D96: prior weight in matches/fixtures #}
+{%- set k_min = var('xpts_k_min', 270) %} {#- D96: prior weight for per-90 rates, in minutes #}
 {%- set k_start = var('xpts_k_start', 3) %}
 {%- set blend = var('xpts_form_blend', 0.0) %}
 {%- set prev_w = var('xpts_prev_weight', 0) %}
