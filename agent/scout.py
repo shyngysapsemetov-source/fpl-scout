@@ -7,6 +7,9 @@ Usage (from the repo root):
   python agent/scout.py compare "Saka" "Palmer" "Salah"
   python agent/scout.py fixtures [--side attack|defence] [--team ARS] [--gw 11]
   python agent/scout.py validate team.json        # squad legality, cost, formation
+  python agent/scout.py optimise squad [--budget 102] [--fix "A (TEAM)"] [--exclude ...]
+  python agent/scout.py optimise transfers --team team.json --bank 1.2 --free 1
+                                                  # best squad / transfers by expected points
 
 It reads a frozen snapshot (default data/agent/gw10/dev.duckdb, or FPL_SCOUT_DB) so an
 experiment can never see data from after its deadline. Calls are appended as JSON lines to
@@ -26,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "agent" / "gw10" / "dev.duckdb"))
 LOG = DB.parent / "calls.jsonl"
 # Bump on every change to what the tool shows (D82), so each agent run records its version.
-TOOL_VERSION = "2026-11-07.1"   # + expected points (xPts)
+TOOL_VERSION = "2026-11-07.2"   # + xPts early-season prior and calibration, + optimise
 SORTS = {
     "pts": "points_per_match_season", "ppm": "points_per_match_season",
     "total": "total_points_season", "value": "points_per_million",
@@ -385,6 +388,18 @@ def cmd_validate(a):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "optimise":
+        # Delegate to the optimiser, logging the call like any other view.
+        with open(LOG, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                                 "tool_version": TOOL_VERSION, "argv": sys.argv[1:]}) + "\n")
+        os.environ["FPL_SCOUT_DB"] = str(DB)
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import optimise
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        print(f"fpl-scout {TOOL_VERSION} · OPTIMISE")
+        optimise.main()
+        return
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("rankings")
