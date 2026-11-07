@@ -45,3 +45,11 @@ seeds:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments: {combination_of_columns: [season, position_code, rule]}
+
+  - name: xpts_calibration
+    description: >
+      Linear stretch for xPts by season phase (D93), fitted by agent/fit_calibration.py on the
+      tuning season only: xpts_calibrated = max(0, intercept + slope * xpts). Regenerate after
+      any change to the xPts model.
+    config:
+      column_types: {phase: varchar, position_code: varchar, fitted_on: varchar}

@@ -16,7 +16,9 @@ vars:
   # xPts parameters (D91, D92): tuned on 2024/25, confirmed on the 2025/26 hold-out.
   xpts_k_start: 3          # prior weight for the start rate, in fixtures
   xpts_form_blend: 1.0     # 1.0 = stabilised last-5 form (season level + damped deviation)
-  xpts_prev_weight: 0      # previous-season player prior: off (it hurt ranking)
+  xpts_prev_weight: 0      # fixed-weight previous-season prior: off (it hurt ranking)
+  xpts_prev_w0: 6          # D95: last season worth 6 matches at GW1 ...
+  xpts_prev_fade: 6        # ... fading to nothing after 6 fixtures
 
 models:
   fpl_scout:

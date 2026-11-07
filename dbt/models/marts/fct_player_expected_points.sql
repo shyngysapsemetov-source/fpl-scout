@@ -103,15 +103,22 @@ parts as (
 )
 
 select
-    season, player_key, player_id, player_name, position_code, team_code, opponent_code,
+    p.season, player_key, player_id, player_name, p.position_code, team_code, opponent_code,
     fixture_id, gameweek, kickoff_at, was_home, is_upcoming, price,
     p_start, p_60, p_sub, exp_minutes,
     xp_appearance, xp_goals, xp_assists, xp_clean_sheet, xp_goals_conceded, xp_saves,
     xp_bonus, xp_cards, xp_defensive_contribution,
     xp_appearance + xp_goals + xp_assists + xp_clean_sheet + xp_goals_conceded + xp_saves
         + xp_bonus + xp_cards + xp_defensive_contribution          as xpts,
+    -- D93, D94: calibrated level and spread, by season phase and position; ranking within a
+    -- position is unchanged, and cross-position comparisons become fair.
+    greatest(0, c.intercept + c.slope * (xp_appearance + xp_goals + xp_assists + xp_clean_sheet
+        + xp_goals_conceded + xp_saves + xp_bonus + xp_cards + xp_defensive_contribution))
+                                                                   as xpts_calibrated,
     ppm_stable * (p_60 + p_early + p_sub)                          as naive_xpts,
     total_points                                                   as actual_points,
     minutes                                                        as actual_minutes,
     fpl_xp
-from parts
+from parts p
+left join {{ ref('xpts_calibration') }} c
+       on p.gameweek between c.gw_from and c.gw_to and c.position_code = p.position_code

@@ -15,6 +15,10 @@
 {%- set k_start = var('xpts_k_start', 3) %}
 {%- set blend = var('xpts_form_blend', 0.0) %}
 {%- set prev_w = var('xpts_prev_weight', 0) %}
+{#- D93: fading previous-season prior. Weight W0 matches at a player's first fixture of the
+    season, falling linearly to 0 after F fixtures; 0 turns it off. #}
+{%- set prev_w0 = var('xpts_prev_w0', 0) %}
+{%- set prev_fade = var('xpts_prev_fade', 10) %}
 {%- set per90 = ['xg', 'xa', 'bonus', 'saves', 'yellow_cards'] %}
 
 with rows as (
@@ -151,29 +155,54 @@ with_priors as (
     left join prev_player pp on pp.season = so.prev_season and pp.player_code = o.player_code
 ),
 
--- The prior each rate shrinks towards, and its weight: his own last season if available
--- (D91), else the position (D57).
+-- The prior each rate shrinks towards and its weight (D57, D91, D93): the position prior with
+-- weight K, plus, when he played last season, his own last-season rate (stabilised to the
+-- position) with a weight that fades over his first F fixtures (W0 = xpts_prev_w0). The old
+-- fixed-weight switch (xpts_prev_weight) still works on its own.
 priors as (
     select
         *,
-        case when has_prev then (prev_starts + {{ k }} * pos_start_rate) / (prev_fixtures + {{ k }})
-             else pos_start_rate end                                                   as prior_start_rate,
-        case when has_prev then (prev_early_subs + {{ k }} * pos_early_sub_rate) / (prev_starts + {{ k }})
-             else pos_early_sub_rate end                                               as prior_early_sub_rate,
-        case when has_prev then (prev_sub_apps + {{ k }} * pos_sub_rate)
-                                / (prev_fixtures - prev_starts + {{ k }})
-             else pos_sub_rate end                                                     as prior_sub_rate,
-        {%- for m in per90 %}
-        case when has_prev then (prev_{{ m }} + {{ k_min }} * pos_{{ m }}_per90 / 90)
-                                / (prev_minutes + {{ k_min }}) * 90
-             else pos_{{ m }}_per90 end                                                as prior_{{ m }}_per90,
+        case when pp_has then {{ prev_w0 }} * greatest(0, 1 - fixtures_prior / {{ prev_fade }}) else 0 end
+                                                                                        as w_prev,
+        {%- for name, num, den, posrate in [
+             ('start', 'prev_starts', 'prev_fixtures', 'pos_start_rate'),
+             ('early_sub', 'prev_early_subs', 'prev_starts', 'pos_early_sub_rate'),
+             ('sub', 'prev_sub_apps', 'prev_fixtures - prev_starts', 'pos_sub_rate'),
+             ('ppm', 'prev_points', 'prev_matches', 'pos_ppm')] %}
+        coalesce(({{ num }} + {{ k }} * {{ posrate }}) / ({{ den }} + {{ k }}), {{ posrate }})
+                                                                                        as prev_{{ name }}_rate,
         {%- endfor %}
-        case when has_prev then (prev_points + {{ k }} * pos_ppm) / (prev_matches + {{ k }})
-             else pos_ppm end                                                          as prior_ppm,
-        case when has_prev then {{ prev_w }} else {{ k_start }} end                    as w_start,
-        case when has_prev then {{ prev_w }} else {{ k }} end                          as w_match,
-        case when has_prev then {{ prev_w }} * 90 else {{ k_min }} end                 as w_minutes
-    from with_priors
+        {%- for m in per90 %}
+        coalesce((prev_{{ m }} + {{ k_min }} * pos_{{ m }}_per90 / 90) / (prev_minutes + {{ k_min }}) * 90,
+                 pos_{{ m }}_per90)                                                     as prev_{{ m }}_rate,
+        {%- endfor %}
+    from (select *, coalesce(prev_fixtures, 0) > 0 as pp_has from with_priors)
+),
+
+priors2 as (
+    select
+        *,
+        -- Fixed-weight switch (D91) if set, else the fading mix (D93).
+        case when has_prev then {{ prev_w }} else {{ k_start }} + w_prev end           as w_start,
+        case when has_prev then {{ prev_w }} else {{ k }} + w_prev end                 as w_match,
+        case when has_prev then {{ prev_w }} * 90 else {{ k_min }} + w_prev * 90 end   as w_minutes,
+        case when has_prev then prev_start_rate
+             else ({{ k_start }} * pos_start_rate + w_prev * prev_start_rate) / ({{ k_start }} + w_prev) end
+                                                                                        as prior_start_rate,
+        case when has_prev then prev_early_sub_rate
+             else ({{ k }} * pos_early_sub_rate + w_prev * prev_early_sub_rate) / ({{ k }} + w_prev) end
+                                                                                        as prior_early_sub_rate,
+        case when has_prev then prev_sub_rate
+             else ({{ k }} * pos_sub_rate + w_prev * prev_sub_rate) / ({{ k }} + w_prev) end
+                                                                                        as prior_sub_rate,
+        case when has_prev then prev_ppm_rate
+             else ({{ k }} * pos_ppm + w_prev * prev_ppm_rate) / ({{ k }} + w_prev) end as prior_ppm,
+        {%- for m in per90 %}
+        case when has_prev then prev_{{ m }}_rate
+             else ({{ k_min }} * pos_{{ m }}_per90 + w_prev * 90 * prev_{{ m }}_rate)
+                  / ({{ k_min }} + w_prev * 90) end                                    as prior_{{ m }}_per90{{ "," if not loop.last }}
+        {%- endfor %}
+    from priors
 ),
 
 season_rates as (
@@ -189,7 +218,7 @@ season_rates as (
             / (fixtures_prior - starts_prior + w_match)                                as sub_rate,
         (dc_hits_prior + {{ k }} * coalesce(prior_dc_hit_rate, 0)) / (dc_matches_prior + {{ k }}) as dc_hit_rate,
         (points_prior + w_match * prior_ppm) / (matches_prior + w_match)               as ppm_stable
-    from priors
+    from priors2
 )
 
 -- Blend in the last 5 fixtures as season level + damped deviation (D72), weight b (D91).
