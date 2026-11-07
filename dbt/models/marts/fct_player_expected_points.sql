@@ -19,6 +19,12 @@
 {%- set gk = "position_code = 'GKP'" if on else "false" %}
 {%- set gk_f = "f.position_code = 'GKP'" if on else "false" %}
 {%- set gk_m = "m.position_code = 'GKP'" if on else "false" %}
+{#- D106 outfield minutes model; --vars '{"xpts_minutes_model": false}' turns it off. #}
+{%- set mm = var('xpts_minutes_model', true) %}
+{#- D108 per-position component scales; --vars '{"xpts_component_scales": false}' turns them off. #}
+{%- set cs_on = var('xpts_component_scales', false) %}
+{#- D109: weight on the breakout persistence term (0 = off). #}
+{%- set bw = var('xpts_breakout_weight', 0) %}   {#- off by default: no pick gain (D111) #}
 {%- set rules_list = ['long_play', 'short_play', 'goals_scored', 'assists', 'clean_sheets',
     'goals_conceded', 'saves', 'yellow_cards', 'bonus', 'defensive_contribution'] %}
 
@@ -67,6 +73,16 @@ keeper as (
     from {{ ref('keeper_params') }}
 ),
 
+minutes_model as (
+    select
+        max(value) filter (where parameter = 'intercept')      as m_a,
+        max(value) filter (where parameter = 'b_start_rate')   as m_rate,
+        max(value) filter (where parameter = 'b_started_last') as m_last,
+        max(value) filter (where parameter = 'b_last_minutes') as m_min,
+        max(value) filter (where parameter = 'b_streak')       as m_streak
+    from {{ ref('minutes_params') }}
+),
+
 availability as (
     -- The API's chance of playing applies to the very next gameweek only.
     select m.player_id, coalesce(m.chance_of_playing_next_pct, 100) / 100.0 as chance,
@@ -82,6 +98,13 @@ probs as (
         x.expected_goals_against / nullif(x.opp_base_xg, 0)      as save_factor,
         case when {{ gk_f }} and f.started_last is not null
              then case when f.started_last = 1 then k.p_if_started else k.p_if_not end
+             {%- if mm %}
+             -- D106: outfield players with a previous fixture use the minutes model.
+             when f.started_last is not null
+             then least(0.99, greatest(0.01, mm.m_a + mm.m_rate * f.start_rate
+                  + mm.m_last * f.started_last + mm.m_min * f.last_minutes / 90
+                  + mm.m_streak * least(f.start_streak, 5) / 5))
+             {%- endif %}
              else f.start_rate end
             * case when f.season = '{{ this_season }}' and f.is_upcoming
                              and f.gameweek = a.next_gameweek then a.chance else 1 end
@@ -90,6 +113,7 @@ probs as (
     join fixture x using (season, fixture_id, team_code)
     left join availability a on f.season = '{{ this_season }}' and a.player_id = f.player_id
     cross join keeper k
+    cross join minutes_model mm
 ),
 
 minutes as (
@@ -128,25 +152,64 @@ parts as (
     from minutes m
     join rules r using (season, position_code)
     cross join keeper k
+),
+
+scaled as (
+    select
+        p.* {%- if cs_on %} replace (
+        xp_goals * coalesce(sg.a, 1)                                          as xp_goals,
+        xp_assists * coalesce(sa.a, 1)                                        as xp_assists,
+        xp_defensive_contribution * coalesce(sd.a, 1)                         as xp_defensive_contribution,
+        -- outfield bonus from the fixture: a + b * CS prob + c * expected attacking points per play
+        case when sb.a is null then xp_bonus
+             else greatest(0, sb.a + sb.b * clean_sheet_prob
+                  + sb.c * (xp_goals + xp_assists) / nullif(p_60 + p_early + p_sub, 0))
+                  * (p_60 + p_early + p_sub) end                              as xp_bonus)
+        {%- endif %}
+    from parts p
+    {%- if cs_on %}
+    left join {{ ref('component_scales') }} sg on sg.position_code = p.position_code and sg.component = 'goals'
+    left join {{ ref('component_scales') }} sa on sa.position_code = p.position_code and sa.component = 'assists'
+    left join {{ ref('component_scales') }} sd on sd.position_code = p.position_code and sd.component = 'defensive_contribution'
+    left join {{ ref('component_scales') }} sb on sb.position_code = p.position_code and sb.component = 'bonus'
+    {%- endif %}
+),
+
+breakout_asof as (
+    -- His latest breakout state from an EARLIER gameweek (pre-deadline, D103).
+    select s.player_key, s.fixture_id,
+           coalesce(case when b.is_breakout then b.share_of_jump_kept_next5
+                         * (b.recent_points_per_fixture - b.baseline_points_per_fixture) end, 0)
+               * (s.p_60 + s.p_early + s.p_sub) * {{ bw }}            as xp_breakout,
+           case when b.is_breakout then b.breakout_reason end           as breakout_reason
+    from scaled s
+    asof left join {{ ref('fct_player_breakouts') }} b
+      on b.player_key = s.player_key and s.gameweek > b.gameweek
+),
+
+final as (
+    select s.*, ba.xp_breakout, ba.breakout_reason
+    from scaled s join breakout_asof ba using (player_key, fixture_id)
 )
 
 select
     p.season, player_key, player_id, player_name, p.position_code, team_code, opponent_code,
     fixture_id, gameweek, kickoff_at, was_home, is_upcoming, price,
-    p_start, p_60, p_sub, exp_minutes,
+    p_start, p_60, p_early, p_sub, exp_minutes, clean_sheet_prob as clean_sheet_prob_used,
     xp_appearance, xp_goals, xp_assists, xp_clean_sheet, xp_goals_conceded, xp_saves,
-    xp_bonus, xp_cards, xp_defensive_contribution,
+    xp_bonus, xp_cards, xp_defensive_contribution, xp_breakout, breakout_reason,
     xp_appearance + xp_goals + xp_assists + xp_clean_sheet + xp_goals_conceded + xp_saves
-        + xp_bonus + xp_cards + xp_defensive_contribution          as xpts,
+        + xp_bonus + xp_cards + xp_defensive_contribution + xp_breakout as xpts,
     -- D93, D94: calibrated level and spread, by season phase and position; ranking within a
     -- position is unchanged, and cross-position comparisons become fair.
     greatest(0, c.intercept + c.slope * (xp_appearance + xp_goals + xp_assists + xp_clean_sheet
-        + xp_goals_conceded + xp_saves + xp_bonus + xp_cards + xp_defensive_contribution))
+        + xp_goals_conceded + xp_saves + xp_bonus + xp_cards + xp_defensive_contribution
+        + xp_breakout))
                                                                    as xpts_calibrated,
     ppm_stable * (p_60 + p_early + p_sub)                          as naive_xpts,
     total_points                                                   as actual_points,
     minutes                                                        as actual_minutes,
     fpl_xp
-from parts p
+from final p
 left join {{ ref('xpts_calibration') }} c
        on p.gameweek between c.gw_from and c.gw_to and c.position_code = p.position_code

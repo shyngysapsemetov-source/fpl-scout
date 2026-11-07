@@ -1,0 +1,6 @@
+parameter,value,fitted_on
+intercept,-0.018840,2023-24+2024-25
+b_start_rate,0.508931,2023-24+2024-25
+b_started_last,-0.310912,2023-24+2024-25
+b_last_minutes,0.899732,2023-24+2024-25
+b_streak,-0.070965,2023-24+2024-25

@@ -29,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "agent" / "gw10" / "dev.duckdb"))
 LOG = DB.parent / "calls.jsonl"
 # Bump on every change to what the tool shows (D82), so each agent run records its version.
-TOOL_VERSION = "2026-11-07.2"   # + xPts early-season prior and calibration, + optimise
+TOOL_VERSION = "2026-11-07.3"   # + minutes model, keeper rules, breakout flags
 SORTS = {
     "pts": "points_per_match_season", "ppm": "points_per_match_season",
     "total": "total_points_season", "value": "points_per_million",
@@ -165,7 +165,9 @@ def cmd_rankings(a):
               f"{f(r.points_per_match_l5_stable, '.2f'):>5} {f(r.points_per_million, '.1f'):>5} "
               + "".join(f"{vp(r, col, spec):>11}" for _, col, spec in cols)
               + f" {f(r.starts_season, '.0f') + '/' + f(r.team_fixtures_season, '.0f'):>6} {set_pieces(r):<15}"
-              f"{ngw:<34}{f(r.selected_by_pct, '.1f'):>5}  {last:<11} {'' if r.status == 'a' else status_txt(r)}")
+              f"{ngw:<34}{f(r.selected_by_pct, '.1f'):>5}  {last:<11} "
+              f"{('BREAKOUT:' + r.breakout_reason + ' ') if getattr(r, 'is_breakout', False) else ''}"
+              f"{'' if r.status == 'a' else status_txt(r)}")
 
 
 # ------------------------------------------------------------------------------- report
@@ -202,6 +204,11 @@ def report(c, r):
                f"before 60', {f(r.zero_minute_fixtures_season, '.0f')} fixtures with 0' (the API gives no reason) · "
                f"set pieces: {set_pieces(r)} · share of team xG {f(r.xg_share_season, '.0%')}, "
                f"xA {f(r.xa_share_season, '.0%')} · {f(r.points_per_million, '.1f')} pts per £m")
+    if getattr(r, "is_breakout", False):
+        out.append(f"BREAKOUT ({r.breakout_reason}): last 4 fixtures {f(r.breakout_recent_ppf, '.2f')} pts vs "
+                   f"baseline {f(r.breakout_baseline_ppf, '.2f')}; historically {f(r.breakout_p_lasts, '.0%')} of "
+                   f"'{r.breakout_reason}' breakouts stay above baseline over the next 5, keeping "
+                   f"{f(r.breakout_share_kept, '.0%')} of the jump")
     out.append(f"Next gameweek: {next_gw(r)}")
     out.append(f"Expected points: next GW {f(r.xpts_next_gw, '.2f')} (P(start) {f(r.p_start_next_gw, '.0%')}), "
                f"next 5 GWs {f(r.xpts_next5, '.1f')} ({f(r.xpts_next5_per_million, '.2f')} per £m)")

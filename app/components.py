@@ -169,6 +169,16 @@ def scout_card(p, pool_size, fixtures):
                     f'<div class="s">{escape(s)}</div></div>')
     html.append("</div>")
     html.append(role_line(p))
+    if p.get("is_breakout"):
+        lasts = p.get("breakout_p_lasts") or 0
+        kept = p.get("breakout_share_kept") or 0
+        html.append(
+            '<div class="fs-meta" style="margin:4px 0 6px;font-size:12.5px;color:#0b0b0b">'
+            f'<span class="fs-status" style="margin:0 6px 0 0;border-color:#eb6834;color:#0b0b0b">'
+            f'Breakout · {escape(p.get("breakout_reason") or "")}</span>'
+            f'last 4: {p.get("breakout_recent_ppf") or 0:.1f} pts/fixture vs {p.get("breakout_baseline_ppf") or 0:.1f} '
+            f'before · past "{escape(p.get("breakout_reason") or "")}" breakouts: {lasts:.0%} stayed above '
+            f'baseline over the next 5, keeping {kept:.0%} of the jump</div>')
 
     if not p.get("is_rank_eligible"):
         html.append('<div class="fs-sec">Percentiles</div><div class="fs-na">Not enough '

@@ -118,6 +118,15 @@ xpts as (
     group by player_id
 ),
 
+-- D107: his breakout state after his latest fixture this season.
+breakout as (
+    select player_id, is_breakout, breakout_reason, recent_points_per_fixture,
+           baseline_points_per_fixture, p_stays_above_next5, share_of_jump_kept_next5
+    from {{ ref('fct_player_breakouts') }}
+    where season = '{{ var("season") | replace("_", "-") }}'
+    qualify row_number() over (partition by player_id order by kickoff_at desc) = 1
+),
+
 base as (
     select
         s.player_id,
@@ -147,6 +156,12 @@ base as (
         xs.xg_share_season,
         xs.xa_share_season,
         coalesce(l.total_points_season, 0) / s.price               as points_per_million,
+        coalesce(bk.is_breakout, false)                            as is_breakout,
+        case when bk.is_breakout then bk.breakout_reason end       as breakout_reason,
+        case when bk.is_breakout then bk.recent_points_per_fixture end   as breakout_recent_ppf,
+        case when bk.is_breakout then bk.baseline_points_per_fixture end as breakout_baseline_ppf,
+        case when bk.is_breakout then bk.p_stays_above_next5 end   as breakout_p_lasts,
+        case when bk.is_breakout then bk.share_of_jump_kept_next5 end    as breakout_share_kept,
         xp.xpts_next_gw,
         xp.xpts_next5,
         xp.p_start_next_gw,
@@ -171,6 +186,7 @@ base as (
     left join minutes_profile mp using (player_id)
     left join xg_share xs using (player_id)
     left join xpts xp using (player_id)
+    left join breakout bk using (player_id)
 )
 
 select

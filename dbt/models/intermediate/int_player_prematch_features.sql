@@ -22,7 +22,10 @@
 {%- set per90 = ['xg', 'xa', 'bonus', 'saves', 'yellow_cards'] %}
 
 with rows as (
-    select *, minutes is not null and minutes > 0 as played
+    select *, minutes is not null and minutes > 0 as played,
+           -- cumulative starts up to and including this fixture (for the start streak)
+           sum(coalesce(starts, 0)) over (partition by player_key order by gameweek, fixture_id
+                                          rows between unbounded preceding and current row) as starts_running
     from {{ ref('int_player_fixtures_all') }}
 ),
 
@@ -49,7 +52,12 @@ own as (
                           when 'DEF' then 10 else 12 end) over prior      as dc_hits_prior,
         coalesce(sum(total_points) filter (where played) over prior, 0)   as points_prior,
         -- D100: did he start his last fixture of the season? (null before his first)
-        last_value(starts ignore nulls) over prior                        as started_last
+        last_value(starts ignore nulls) over prior                        as started_last,
+        -- D106: his minutes in his last fixture, and his run of consecutive starts up to it.
+        last_value(minutes ignore nulls) over prior                       as last_minutes,
+        coalesce(starts_prior, 0)
+          - coalesce(max(case when starts = 0 then starts_running end) over prior, 0)
+                                                                          as start_streak
     from rows
     -- D103: only earlier GAMEWEEKS count (the deadline view): a double gameweek's second
     -- match doesn't see the first. last5 = his last 5 gameweeks.

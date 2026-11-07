@@ -61,3 +61,18 @@ seeds:
       a linear function of expected goals against.
     config:
       column_types: {parameter: varchar, value: double, fitted_on: varchar}
+
+  - name: minutes_params
+    description: >
+      Outfield P(start) model (D106), fitted by agent/fit_minutes.py on training seasons:
+      clip(a + b1*start_rate + b2*started_last + b3*last_minutes/90 + b4*min(streak,5)/5).
+    config:
+      column_types: {parameter: varchar, value: double, fitted_on: varchar}
+
+  - name: component_scales
+    description: >
+      Per-position xPts component scales (D108), fitted by agent/fit_components.py on training
+      seasons: goals/assists/defensive_contribution multipliers (a), and outfield bonus =
+      a + b * clean-sheet prob + c * expected attacking points per play. Empty = no scaling.
+    config:
+      column_types: {position_code: varchar, component: varchar, a: double, b: double, c: double, fitted_on: varchar}

@@ -1,0 +1,13 @@
+position_code,component,a,b,c,fitted_on
+DEF,goals,0.8189,0,0,2024-25
+DEF,assists,1.0723,0,0,2024-25
+DEF,defensive_contribution,1.2193,0,0,2025-26
+DEF,bonus,-0.0477,0.5578,0.1595,2024-25
+MID,goals,0.8950,0,0,2024-25
+MID,assists,1.2035,0,0,2024-25
+MID,defensive_contribution,1.4718,0,0,2025-26
+MID,bonus,-0.0609,0.1440,0.2377,2024-25
+FWD,goals,0.8914,0,0,2024-25
+FWD,assists,1.8547,0,0,2024-25
+FWD,defensive_contribution,2.4484,0,0,2025-26
+FWD,bonus,-0.0969,0.8586,0.2580,2024-25
