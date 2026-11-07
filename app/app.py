@@ -257,6 +257,7 @@ with tab_rank:
     lo, hi = float(current.price.min()), float(current.price.max())
     price = f3.slider("Price (£m)", lo, hi, (lo, hi), 0.5)
     sort_options = {
+        "Expected pts, next GW": "xpts_next_gw", "Expected pts, next 5": "xpts_next5",
         "Points per match": "points_per_match_season", "Total points": "total_points_season",
         "Points per £m": "points_per_million",
         "Form (last 5, stabilised)": "points_per_match_l5_stable",

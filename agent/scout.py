@@ -26,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "agent" / "gw10" / "dev.duckdb"))
 LOG = DB.parent / "calls.jsonl"
 # Bump on every change to what the tool shows (D82), so each agent run records its version.
-TOOL_VERSION = "2026-11-06.2"
+TOOL_VERSION = "2026-11-07.1"   # + expected points (xPts)
 SORTS = {
     "pts": "points_per_match_season", "ppm": "points_per_match_season",
     "total": "total_points_season", "value": "points_per_million",
@@ -35,6 +35,7 @@ SORTS = {
     "owned": "selected_by_pct", "price": "price", "saves": "saves_per90_season",
     "xgc": "xgc_per90_season", "cs_next": "next_gw_clean_sheet_prob",
     "xg_next": "next_gw_expected_goals_for", "xg_share": "xg_share_season",
+    "xpts": "xpts_next_gw", "xpts5": "xpts_next5", "xpts5_value": "xpts_next5_per_million",
 }
 ASCENDING = {"xgc"}   # lower is better
 SQUAD = {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
@@ -144,10 +145,11 @@ def cmd_rankings(a):
     print(f"fpl-scout {TOOL_VERSION} · RANKINGS pos={pos or 'all'} team={a.team or 'all'} "
           f"price={a.min_price or '-'}..{a.max_price or '-'} sort={a.sort} eligible_only={not a.all}  "
           f"({len(df)} players, showing {min(a.limit, len(df))})")
-    print("value(pct): per-90 value with its 0-100 percentile within position (higher pct is better). "
+    print("xP GW / xP 5GW = expected FPL points next gameweek / next 5 (our model, backtested). "
+          "value(pct): per-90 value with its 0-100 percentile within position (higher pct is better). "
           "pts/m = season points per £m. L5 = stabilised last-5 points per match. "
           "set = set-piece order (pen1 = first-choice penalties).")
-    print(f"{'#':>3} {'player':<22}{'pos':<4}{'£m':>5} {'pts':>4} {'pts/mt':>6} {'L5':>5} {'pts/m':>5} "
+    print(f"{'#':>3} {'player':<22}{'pos':<4}{'£m':>5} {'xP GW':>6} {'xP 5GW':>6} {'pts':>4} {'pts/mt':>6} {'L5':>5} {'pts/m':>5} "
           + "".join(f"{h:>11}" for h, _, _ in cols)
           + f" {'starts':>6} {'set':<15}{'next GW':<34}{'own%':>5}  last 8      status")
     for i, r in enumerate(df.head(a.limit).itertuples(), 1):
@@ -155,7 +157,8 @@ def cmd_rankings(a):
         ngw = "-" if missing(r.next_gameweek) else (
             f"{r.next_gw_opponents} {r.next_gw_expected_goals_for:.1f}xG/{r.next_gw_clean_sheet_prob:.0%}CS")
         print(f"{i:>3} {r.web_name[:15] + ' (' + r.current_team + ')':<22}{r.position_code:<4}"
-              f"{r.price:>5.1f} {f(r.total_points_season, '.0f'):>4} {f(r.points_per_match_season, '.2f'):>6} "
+              f"{r.price:>5.1f} {f(r.xpts_next_gw, '.2f'):>6} {f(r.xpts_next5, '.1f'):>6} "
+              f"{f(r.total_points_season, '.0f'):>4} {f(r.points_per_match_season, '.2f'):>6} "
               f"{f(r.points_per_match_l5_stable, '.2f'):>5} {f(r.points_per_million, '.1f'):>5} "
               + "".join(f"{vp(r, col, spec):>11}" for _, col, spec in cols)
               + f" {f(r.starts_season, '.0f') + '/' + f(r.team_fixtures_season, '.0f'):>6} {set_pieces(r):<15}"
@@ -197,6 +200,16 @@ def report(c, r):
                f"set pieces: {set_pieces(r)} · share of team xG {f(r.xg_share_season, '.0%')}, "
                f"xA {f(r.xa_share_season, '.0%')} · {f(r.points_per_million, '.1f')} pts per £m")
     out.append(f"Next gameweek: {next_gw(r)}")
+    out.append(f"Expected points: next GW {f(r.xpts_next_gw, '.2f')} (P(start) {f(r.p_start_next_gw, '.0%')}), "
+               f"next 5 GWs {f(r.xpts_next5, '.1f')} ({f(r.xpts_next5_per_million, '.2f')} per £m)")
+    xp = c.execute("""select gameweek, xpts, xp_appearance, xp_goals, xp_assists, xp_clean_sheet,
+                             xp_goals_conceded, xp_saves, xp_bonus, xp_defensive_contribution
+                      from main.fct_player_expected_points
+                      where player_id = ? and is_upcoming order by kickoff_at""", [pid]).df()
+    for x in xp.itertuples():
+        out.append(f"  GW{x.gameweek}: {x.xpts:.2f} = app {x.xp_appearance:.2f} + goals {x.xp_goals:.2f} + "
+                   f"assists {x.xp_assists:.2f} + CS {x.xp_clean_sheet:.2f} + GC {x.xp_goals_conceded:.2f} + "
+                   f"saves {x.xp_saves:.2f} + bonus {x.xp_bonus:.2f} + DC {x.xp_defensive_contribution:.2f}")
     out.append("##percentiles")
     out.append("Percentiles within position (0-100, higher is better); value in brackets:")
     for sec, label, col, spec, positions in SECTIONS:
@@ -276,6 +289,8 @@ def cmd_compare(a):
             ("Price", lambda r: f(r.price, ".1f")), ("Season pts", lambda r: f(r.total_points_season, ".0f")),
             ("Pts/match", lambda r: f(r.points_per_match_season, ".2f")),
             ("Pts per £m", lambda r: f(r.points_per_million, ".1f")),
+            ("xPts next GW", lambda r: f(r.xpts_next_gw, ".2f")),
+            ("xPts next 5", lambda r: f(r.xpts_next5, ".1f")),
             ("L5 ppm (stab.)", lambda r: f(r.points_per_match_l5_stable, ".2f")),
             ("xG/90", lambda r: f(r.xg_per90_season, ".2f")), ("xA/90", lambda r: f(r.xa_per90_season, ".2f")),
             ("BPS/90", lambda r: f(r.bps_per90_season, ".1f")),

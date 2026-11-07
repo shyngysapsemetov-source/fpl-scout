@@ -30,6 +30,8 @@
     ('defensive_contribution_per90_season', 'asc',  ['DEF', 'MID', 'FWD']),
     ('saves_per90_season',                  'asc',  ['GKP']),
     ('points_per_million',                  'asc',  none),
+    ('xpts_next_gw',                        'asc',  none),
+    ('xpts_next5',                          'asc',  none),
 ] %}
 
 with latest as (
@@ -102,6 +104,20 @@ next_gw as (
     group by team_code
 ),
 
+-- Expected points (D87, D92): the very next gameweek (double gameweeks summed) and the next 5.
+xpts as (
+    select
+        player_id,
+        sum(xpts) filter (where gameweek = (select min(gameweek) from {{ ref('fct_team_next_fixtures') }}))
+                                                                 as xpts_next_gw,
+        sum(xpts)                                                as xpts_next5,
+        avg(p_start) filter (where gameweek = (select min(gameweek) from {{ ref('fct_team_next_fixtures') }}))
+                                                                 as p_start_next_gw
+    from {{ ref('fct_player_expected_points') }}
+    where is_upcoming and season = '{{ var("season") | replace("_", "-") }}'
+    group by player_id
+),
+
 base as (
     select
         s.player_id,
@@ -131,6 +147,10 @@ base as (
         xs.xg_share_season,
         xs.xa_share_season,
         coalesce(l.total_points_season, 0) / s.price               as points_per_million,
+        xp.xpts_next_gw,
+        xp.xpts_next5,
+        xp.p_start_next_gw,
+        xp.xpts_next5 / s.price                                    as xpts_next5_per_million,
         ng.next_gameweek,
         ng.next_gw_opponents,
         ng.next_gw_fixtures,
@@ -150,6 +170,7 @@ base as (
     left join next_gw ng on ng.team_code = t.team_code
     left join minutes_profile mp using (player_id)
     left join xg_share xs using (player_id)
+    left join xpts xp using (player_id)
 )
 
 select

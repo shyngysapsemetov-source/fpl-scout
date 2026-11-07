@@ -26,7 +26,7 @@ with current_played as (
         false                                                 as is_upcoming
     from {{ ref('fct_player_fixtures') }} f
     join {{ ref('int_player_fixture_points') }} p using (player_id, fixture_id)
-    join {{ ref('mart_player_current') }} m using (player_id)
+    join {{ ref('int_player_latest') }} m using (player_id)
     join {{ ref('stg_fpl__teams') }} t on t.team_id = f.team_id
     join {{ ref('stg_fpl__teams') }} o on o.team_id = f.opponent_team_id
 ),
@@ -56,8 +56,8 @@ current_upcoming as (
         m.price,
         null::double                                          as fpl_xp,
         true                                                  as is_upcoming
-    from {{ ref('mart_player_current') }} m
-    join {{ ref('fct_team_next_fixtures') }} n on n.team_id = m.current_team_id
+    from {{ ref('int_player_latest') }} m
+    join {{ ref('fct_team_next_fixtures') }} n on n.team_id = m.team_id
 ),
 
 history as (

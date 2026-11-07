@@ -53,8 +53,8 @@ fixture as (
 availability as (
     -- The API's chance of playing applies to the very next gameweek only.
     select m.player_id, coalesce(m.chance_of_playing_next_pct, 100) / 100.0 as chance,
-           m.next_gameweek
-    from {{ ref('mart_player_current') }} m
+           (select min(gameweek) from {{ ref('fct_team_next_fixtures') }}) as next_gameweek
+    from {{ ref('int_player_latest') }} m
 ),
 
 probs as (

@@ -23,7 +23,7 @@ button[data-baseweb="tab"] p { font-size: 15px; font-weight: 600; }
 LIST_CSS = """
 <style>
 .fs-list { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0b0b0b; }
-.fs-li { display: grid; grid-template-columns: 30px 38px minmax(160px, 1.5fr) 44px 54px 50px 92px
+.fs-li { display: grid; grid-template-columns: 30px 38px minmax(160px, 1.5fr) 52px 44px 54px 50px 92px
   repeat(3, minmax(96px, 1fr)) 60px; align-items: center; gap: 12px; padding: 8px 12px;
   border-bottom: 1px solid #f0efec; font-size: 13px; }
 .fs-li.hd { color: #898781; font-size: 11px; font-weight: 600; letter-spacing: .06em;
@@ -81,7 +81,7 @@ def ranked_list(rows, pctl_cols):
     """rows: dicts already sorted. pctl_cols: three (label, percentile column) mini bars."""
     out = [CSS, LIST_CSS, '<div class="fs-card" style="padding:6px 6px"><div class="fs-list">',
            '<div class="fs-li hd"><div class="rk">#</div><div></div><div>Player</div>'
-           '<div class="num">Pts</div><div class="num">Pts/mt</div><div class="num">Pts/£m</div><div>Last 8</div>'
+           '<div class="num" title="Expected points next GW / next 5">xP</div><div class="num">Pts</div><div class="num">Pts/mt</div><div class="num">Pts/£m</div><div>Last 8</div>'
            + "".join(f"<div>{escape(l)}</div>" for l, _, _ in pctl_cols)
            + '<div class="num">Owned</div></div>']
     for i, p in enumerate(rows, 1):
@@ -95,6 +95,8 @@ def ranked_list(rows, pctl_cols):
             f'<div><div class="nm">{escape(p["web_name"])}{pill}</div>'
             f'<div class="sub">{escape(p["current_team"])} · {p["position_code"]} · '
             f'£{p["price"]:.1f}m</div></div>'
+            f'<div class="num" title="next 5 GWs: {fmt(p.get("xpts_next5"), ".1f")}">'
+            f'{fmt(p.get("xpts_next_gw"), ".1f")}</div>'
             f'<div class="num">{fmt(p.get("total_points_season"), ".0f")}</div>'
             f'<div class="num">{fmt(p.get("points_per_match_season"), ".2f")}</div>'
             f'<div class="num">{fmt(p.get("points_per_million"), ".1f")}</div>'
@@ -134,12 +136,14 @@ def compare_card(p, colour, pool_size):
                          p.get("team_secondary_colour"), 38, 11)
             + f'<div><div class="fs-name" style="font-size:18px">{escape(p["web_name"])}</div>'
             f'<div class="fs-meta">{escape(p["current_team"])} · {pos} · £{p["price"]:.1f}m</div></div></div>'
-            '<div class="fs-tiles" style="grid-template-columns:1fr 1fr;margin:12px 0 4px">'
+            '<div class="fs-tiles" style="grid-template-columns:1fr 1fr 1fr;margin:12px 0 4px">'
             f'<div class="fs-tile"><div class="v" style="font-size:20px">'
             f'{fmt(p.get("total_points_season"), ".0f")}</div><div class="l">Points</div></div>'
             f'<div class="fs-tile"><div class="v" style="font-size:20px">'
             f'{fmt(p.get("points_per_match_season"), ".2f")}</div>'
-            f'<div class="l">PPM{rank_txt}</div></div></div>'
+            f'<div class="l">PPM{rank_txt}</div></div>'
+            f'<div class="fs-tile"><div class="v" style="font-size:20px">'
+            f'{fmt(p.get("xpts_next_gw"), ".1f")}</div><div class="l">xP next GW</div></div></div>'
             + note + "".join(rows) + "</div>")
 
 

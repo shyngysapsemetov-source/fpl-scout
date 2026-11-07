@@ -18,7 +18,7 @@ CSS = """
 .fs-meta { color: #52514e; font-size: 13px; margin-top: 3px; }
 .fs-status { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px;
   font-size: 12px; border: 1px solid #c3c2b7; color: #52514e; }
-.fs-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 6px; }
+.fs-tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0 6px; }
 .fs-tile { background: #f9f9f7; border-radius: 10px; padding: 12px 14px; }
 .fs-tile .v { font-size: 26px; font-weight: 700; line-height: 1.1; }
 .fs-tile .l { color: #52514e; font-size: 12px; margin-top: 4px; }
@@ -95,6 +95,7 @@ SECTIONS = [
     ("Output", "Points per match", "points_per_match_season_pctl", "points_per_match_season", ".2f", None),
     ("Output", "Last-5 ppm", "points_per_match_l5_pctl", "points_per_match_l5", ".2f", None),
     ("Output", "Points per £m", "points_per_million_pctl", "points_per_million", ".1f", None),
+    ("Output", "Expected pts, next 5 GWs", "xpts_next5_pctl", "xpts_next5", ".1f", None),
     ("Attack", "xG per 90", "xg_per90_season_pctl", "xg_per90_season", ".2f", None),
     ("Attack", "xA per 90", "xa_per90_season_pctl", "xa_per90_season", ".2f", None),
     ("Bonus", "BPS per 90", "bps_per90_season_pctl", "bps_per90_season", ".1f", None),
@@ -150,6 +151,8 @@ def scout_card(p, pool_size, fixtures):
     tiles = [
         (fmt(p.get("total_points_season"), ".0f"), "Season points", f"GW1–{int(p['last_gameweek'] or 0)}"),
         (fmt(p.get("points_per_match_season"), ".2f"), "Points per match", rank_txt),
+        (fmt(p.get("xpts_next_gw"), ".1f"), "Expected pts, next GW",
+         f"next 5 GWs: {fmt(p.get('xpts_next5'), '.1f')}"),
         (f"{diff:+.2f}", "Form vs season", "last 5, stabilised"),
         (fmt(p.get("played_share_l5"), ".0%"), "Played, last 5", f"{fmt(p.get('avg_minutes_l5'), '.0f')} min avg"),
     ]
