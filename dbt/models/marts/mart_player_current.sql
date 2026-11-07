@@ -105,6 +105,7 @@ next_gw as (
 base as (
     select
         s.player_id,
+        s.player_code,
         s.web_name,
         s.team_id                                       as current_team_id,
         t.team_short_name                               as current_team,

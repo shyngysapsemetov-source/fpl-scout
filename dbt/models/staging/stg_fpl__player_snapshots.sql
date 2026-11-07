@@ -9,6 +9,7 @@ select
     dt                                                      as snapshot_date,
     fetched_at,
     (e->>'id')::int                                         as player_id,
+    (e->>'code')::int                                       as player_code,   -- stable across seasons
     (e->>'web_name')::varchar                               as web_name,
     (e->>'first_name')::varchar                             as first_name,
     (e->>'second_name')::varchar                            as second_name,

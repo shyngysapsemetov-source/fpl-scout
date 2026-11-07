@@ -26,6 +26,8 @@ FILES = {  # raw table -> path inside a season folder
     "history_player_gw": "gws/merged_gw.csv",
     "history_teams": "teams.csv",
     "history_fixtures": "fixtures.csv",
+    # element id -> stable player `code`, to link a player across seasons (D91)
+    "history_players_raw": "players_raw.csv",
 }
 
 

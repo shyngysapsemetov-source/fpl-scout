@@ -8,7 +8,7 @@ seeds:
       position and rule. `verified` turns true once a value has been checked against that
       season's rules. Positions a rule doesn't apply to have no row.
     config:
-      column_types: {threshold: integer, verified: boolean}
+      column_types: {season: varchar, threshold: integer, verified: boolean}
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments: {combination_of_columns: [season, position_code, rule]}
@@ -33,3 +33,15 @@ seeds:
       - name: primary_colour
         tests: [not_null]
 
+
+  - name: scoring_rules_history
+    description: >
+      Points per scoring event per position for past seasons (D89), which the archive doesn't
+      publish. Seeded from the rules as understood, and verified by
+      assert_history_points_reconcile against every archive row's total_points; `verified`
+      turns true once he confirms. The current season's rules come from the API instead.
+    config:
+      column_types: {season: varchar, points: integer, verified: boolean}
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [season, position_code, rule]}

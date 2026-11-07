@@ -61,3 +61,10 @@ models:
     columns:
       - name: gameweek
         tests: [unique, not_null]
+
+  - name: stg_history__player_fixtures
+    description: Past seasons' player x fixture rows from the archive, deduplicated (see model).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [player_key, fixture_id]}
+

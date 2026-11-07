@@ -33,3 +33,6 @@ sources:
         description: Archive teams per past season; `code` is FPL's stable cross-season team id.
       - name: history_fixtures
         description: Archive fixtures per past season.
+      - name: history_players_raw
+        description: Archive player list per past season; maps the season's element id to FPL's stable player `code`.
+
