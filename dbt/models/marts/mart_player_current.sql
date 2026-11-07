@@ -144,8 +144,9 @@ base as (
         s.news,
         s.snapshot_date                                 as as_of_date,
         l.gameweek                                      as last_gameweek,
-        coalesce(l.minutes_played_season, 0)
-            >= 0.4 * 90 * l.team_fixtures_season        as is_rank_eligible,
+        -- false (not null) before he has any fixtures, e.g. at the GW1 deadline
+        coalesce(coalesce(l.minutes_played_season, 0)
+            >= 0.4 * 90 * l.team_fixtures_season, false) as is_rank_eligible,
         s.penalties_order,
         s.corners_order,
         s.direct_freekicks_order,

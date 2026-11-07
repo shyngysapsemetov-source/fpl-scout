@@ -29,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "agent" / "gw10" / "dev.duckdb"))
 LOG = DB.parent / "calls.jsonl"
 # Bump on every change to what the tool shows (D82), so each agent run records its version.
-TOOL_VERSION = "2026-11-07.3"   # + minutes model, keeper rules, breakout flags
+TOOL_VERSION = "2026-11-07.4"   # + minutes model, keeper rules, breakout flags
 SORTS = {
     "pts": "points_per_match_season", "ppm": "points_per_match_season",
     "total": "total_points_season", "value": "points_per_million",
@@ -131,8 +131,14 @@ def cmd_rankings(a):
         df = df[df.price <= a.max_price]
     if a.min_price:
         df = df[df.price >= a.min_price]
+    note = ""
     if not a.all:
-        df = df[df.is_rank_eligible]
+        eligible = df[df.is_rank_eligible.fillna(False).astype(bool)]
+        if eligible.empty and not df.empty:
+            # e.g. before GW1 nobody has minutes yet: show everyone rather than nothing.
+            note = " (no player has 40% of team minutes yet, so showing all players)"
+        else:
+            df = eligible
     last8 = c.execute("""select player_id, list(total_points order by kickoff_at) recent
         from (select *, row_number() over (partition by player_id order by kickoff_at desc) n
               from main.fct_player_rolling where is_played) where n <= 8 group by 1""").df()
@@ -147,7 +153,7 @@ def cmd_rankings(a):
              ("BPS/90", "bps_per90_season", ".1f")])
     print(f"fpl-scout {TOOL_VERSION} · RANKINGS pos={pos or 'all'} team={a.team or 'all'} "
           f"price={a.min_price or '-'}..{a.max_price or '-'} sort={a.sort} eligible_only={not a.all}  "
-          f"({len(df)} players, showing {min(a.limit, len(df))})")
+          f"({len(df)} players, showing {min(a.limit, len(df))}){note}")
     print("xP GW / xP 5GW = expected FPL points next gameweek / next 5 (our model, backtested). "
           "value(pct): per-90 value with its 0-100 percentile within position (higher pct is better). "
           "pts/m = season points per £m. L5 = stabilised last-5 points per match. "
@@ -209,6 +215,26 @@ def report(c, r):
                    f"baseline {f(r.breakout_baseline_ppf, '.2f')}; historically {f(r.breakout_p_lasts, '.0%')} of "
                    f"'{r.breakout_reason}' breakouts stay above baseline over the next 5, keeping "
                    f"{f(r.breakout_share_kept, '.0%')} of the jump")
+    # His previous season, from the archive (useful above all early in a season).
+    prev = c.execute("""
+        with s as (select max(season) as season from main.int_player_fixtures_all
+                   where season < (select max(season) from main.int_player_fixtures_all))
+        select max(team_code) as team_code, count(*) filter (where minutes > 0) as apps,
+               sum(starts) as starts, sum(minutes) as mins, sum(total_points) as pts,
+               sum(goals_scored) as g, sum(assists) as a, sum(xg) as xg, sum(xa) as xa,
+               sum(clean_sheets) as cs, sum(bonus) as bonus, max(position_code) as pos
+        from main.int_player_fixtures_all f join s using (season)
+        where player_code = (select player_code from main.mart_player_current where player_id = ?)
+          and not is_upcoming""", [pid]).fetchone()
+    if prev and prev[1]:
+        team = c.execute("select team_short_name from main.stg_fpl__teams where team_code = ?",
+                         [prev[0]]).fetchone()
+        out.append(f"Last season: {prev[4]} pts in {prev[1]} apps ({prev[2]} starts, {prev[3]} min) "
+                   f"for {team[0] if team else 'a club not in the league now'} as {prev[11]} · "
+                   f"G {prev[5]} (xG {prev[7]:.1f}) A {prev[6]} (xA {prev[8]:.1f}) CS {prev[9]} bonus {prev[10]} · "
+                   f"{prev[4] / max(prev[1], 1):.2f} pts/app")
+    else:
+        out.append("Last season: not in the Premier League (new signing or promoted)")
     out.append(f"Next gameweek: {next_gw(r)}")
     out.append(f"Expected points: next GW {f(r.xpts_next_gw, '.2f')} (P(start) {f(r.p_start_next_gw, '.0%')}), "
                f"next 5 GWs {f(r.xpts_next5, '.1f')} ({f(r.xpts_next5_per_million, '.2f')} per £m)")
@@ -225,7 +251,8 @@ def report(c, r):
     for sec, label, col, spec, positions in SECTIONS:
         if positions and r.position_code not in positions:
             continue
-        p = getattr(r, col + "_pctl", None) if r.is_rank_eligible else None
+        eligible = not missing(r.is_rank_eligible) and bool(r.is_rank_eligible)
+        p = getattr(r, col + "_pctl", None) if eligible else None
         out.append(f"  {sec:<8} {label:<30} {f(p, '.0f'):>4}  ({f(getattr(r, col), spec)})")
 
     nxt = c.execute("""select gameweek, opponent, is_home, expected_goals_for, expected_goals_against,
