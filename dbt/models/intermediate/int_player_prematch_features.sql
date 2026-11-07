@@ -47,7 +47,9 @@ own as (
         count(*) filter (where played and defensive_contribution is not null) over prior as dc_matches_prior,
         count(*) filter (where played and defensive_contribution >= case position_code
                           when 'DEF' then 10 else 12 end) over prior      as dc_hits_prior,
-        coalesce(sum(total_points) filter (where played) over prior, 0)   as points_prior
+        coalesce(sum(total_points) filter (where played) over prior, 0)   as points_prior,
+        -- D100: did he start his last fixture of the season? (null before his first)
+        last_value(starts ignore nulls) over prior                        as started_last
     from rows
     window prior as (partition by player_key order by kickoff_at, fixture_id
                      rows between unbounded preceding and 1 preceding),

@@ -53,3 +53,11 @@ seeds:
       any change to the xPts model.
     config:
       column_types: {phase: varchar, position_code: varchar, fitted_on: varchar}
+
+  - name: keeper_params
+    description: >
+      Keeper-specific xPts parameters (D100), fitted by agent/fit_keeper.py on training seasons
+      only: P(start) by whether he started his last fixture, bonus per match, and save points as
+      a linear function of expected goals against.
+    config:
+      column_types: {parameter: varchar, value: double, fitted_on: varchar}
