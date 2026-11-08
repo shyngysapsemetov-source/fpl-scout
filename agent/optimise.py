@@ -118,7 +118,8 @@ def report(players, gws, squad, plan, hits, objective, current=None):
     cost = players.loc[squad, "price"].sum()
     form = "-".join(str(sum(players.at[i, "pos"] == p for i in xi)) for p in ("DEF", "MID", "FWD"))
     print(f"Optimised over GW{gws[0]}-GW{gws[-1]} (weights {WEIGHTS[:len(gws)]}, bench 10%, calibrated xPts)")
-    print(f"Weighted objective {objective:.1f} · squad cost £{cost:.1f}m · transfers hits: {int(hits or 0)}")
+    print(f"Weighted objective {objective:.1f} · squad cost £{cost:.1f}m · hits: {int(hits or 0)} "
+          f"(-{4 * int(hits or 0)} pts)")
     if current is not None:
         out = [i for i in current if i not in squad]
         inn = [i for i in squad if i not in current]
@@ -173,6 +174,17 @@ def main():
         squad, plan, hits, obj = solve(players, gws, None, current=current, sell=sell, bank=a.bank,
                                        free=a.free, max_transfers=a.max_transfers, fix=fix, exclude=exclude)
         report(players, gws, squad, plan, hits, obj, current=current)
+        # D115: what each extra transfer is worth, net of hits, against rolling.
+        print("\nTransfer ladder (weighted objective over the horizon, net of hits):")
+        base = None
+        for k in range(0, 4):
+            sq, _, h, o = solve(players, gws, None, current=current, sell=sell, bank=a.bank,
+                                free=a.free, max_transfers=k, fix=fix, exclude=exclude)
+            moves = [players.at[i, "label"] for i in sq if i not in current]
+            base = o if base is None else base
+            print(f"  {k} transfer(s): {o:7.1f}  ({o - base:+.1f} vs rolling, after {int(h or 0)} hit(s) = "
+                  f"-{4 * int(h or 0)} pts)"
+                  + (f"  in: {', '.join(moves)}" if moves else ""))
 
 
 if __name__ == "__main__":

@@ -134,7 +134,8 @@ with tab_scout:
         me = current[current.player_id == pid].iloc[0].to_dict()
         pos = me["position_code"]
         nxt = q("""select gameweek, is_home, expected_goals_for, clean_sheet_prob, opponent
-                   from main.fct_team_next_fixtures where team_id = ? order by kickoff_at""",
+                   from main.fct_team_next_fixtures where team_id = ? and gw_index <= 5
+                   order by kickoff_at""",
                 [int(me["current_team_id"])])
         st.html(scout_card(me, pool_size(pos), nxt.to_dict("records")))
 
@@ -369,7 +370,7 @@ with tab_compare:
 
 # ---------------------------------------------------------------- Fixture difficulty
 with tab_fixtures:
-    fx = q("select * from main.fct_team_next_fixtures")
+    fx = q("select * from main.fct_team_next_fixtures where gw_index <= 5")
     if fx.empty:
         st.info("No upcoming fixtures.")
     else:

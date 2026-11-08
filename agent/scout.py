@@ -29,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "agent" / "gw10" / "dev.duckdb"))
 LOG = DB.parent / "calls.jsonl"
 # Bump on every change to what the tool shows (D82), so each agent run records its version.
-TOOL_VERSION = "2026-11-07.4"   # + minutes model, keeper rules, breakout flags
+TOOL_VERSION = "2026-11-08.1"   # + 10-GW fixtures, validate decisions, optimiser per-move gains   # + minutes model, keeper rules, breakout flags
 SORTS = {
     "pts": "points_per_match_season", "ppm": "points_per_match_season",
     "total": "total_points_season", "value": "points_per_million",
@@ -357,6 +357,8 @@ def cmd_fixtures(a):
         fx = fx[fx.team == a.team.upper()]
     if a.gw:
         fx = fx[fx.gameweek == a.gw]
+    else:
+        fx = fx[fx.gw_index <= a.horizon]   # D115: up to 10 GWs ahead
     attack = a.side == "attack"
     key = "expected_goals_for" if attack else "clean_sheet_prob"
     order = fx.groupby("team")[key].mean().sort_values(ascending=False).index
@@ -387,6 +389,28 @@ def cmd_validate(a):
     df = current(c)
     team = json.loads(pathlib.Path(a.file).read_text(encoding="utf-8"))
     errs = []
+    money_note = None
+    if "squad" not in team and "transfers" in team:
+        # D115: a weekly decision file (transfers only): rebuild the squad from --state.
+        if not a.state:
+            sys.exit("a decision with 'transfers' needs --state state.json (your current squad)")
+        st = json.loads(pathlib.Path(a.state).read_text(encoding="utf-8"))
+        held = {p["label"]: p for p in st["squad"]}
+        outs = [t["out"] for t in team["transfers"]]
+        ins = [t["in"] for t in team["transfers"]]
+        missing_out = [o for o in outs if o not in held]
+        if missing_out:
+            errs.append(f"transferring out players not in your squad: {missing_out}")
+        team["squad"] = [l for l in held if l not in outs] + ins
+        spend = sum(float(find(df, n).price) for n in ins)
+        funds = st["bank"] + sum(held[o].get("selling_price", held[o].get("bought", 0)) for o in outs if o in held)
+        if spend > funds + 1e-9:
+            errs.append(f"transfers cost £{spend:.1f}m but you have £{funds:.1f}m (bank + selling prices)")
+        free = st.get("free_transfers") or 0
+        hits = max(0, len(ins) - free) * 4 if team.get("chip") not in ("wildcard", "free_hit") else 0
+        money_note = (f"{len(ins)} transfer(s), {free} free -> hit -{hits} · spend £{spend:.1f}m of £{funds:.1f}m "
+                      f"(bank after £{funds - spend:.1f}m)")
+        a.budget = 1e9   # money already checked via selling prices
     squad = [find(df, n) for n in team["squad"]]
     ids = [int(r.player_id) for r in squad]
     if len(set(ids)) != 15:
@@ -416,7 +440,9 @@ def cmd_validate(a):
     cap, vice = int(find(df, team["captain"]).player_id), int(find(df, team["vice_captain"]).player_id)
     if cap not in start or vice not in start or cap == vice:
         errs.append("captain and vice must be different players in the starting XI")
-    print(f"cost £{cost:.1f}m of £{a.budget:.1f}m (bank £{a.budget - cost:.1f}m) · "
+    if money_note:
+        print(money_note)
+    print(f"cost £{cost:.1f}m" + ("" if a.budget > 1e8 else f" of £{a.budget:.1f}m (bank £{a.budget - cost:.1f}m)") + " · "
           f"formation {xi.count('DEF')}-{xi.count('MID')}-{xi.count('FWD')}")
     print("VALID" if not errs else "INVALID:\n  " + "\n  ".join(errs))
 
@@ -456,9 +482,11 @@ def main():
     fx.add_argument("--side", choices=["attack", "defence"], default="attack")
     fx.add_argument("--team")
     fx.add_argument("--gw", type=int, help="one gameweek only")
+    fx.add_argument("--horizon", type=int, default=5, help="gameweeks ahead to show (max 10)")
     v = sub.add_parser("validate")
     v.add_argument("file")
     v.add_argument("--budget", type=float, default=102.0)
+    v.add_argument("--state", help="your state file, to validate a weekly decision that lists transfers")
     a = ap.parse_args()
     if not DB.exists():
         sys.exit(f"snapshot not found: {DB}")

@@ -55,6 +55,7 @@ next5 as (
         avg(expected_goals_for)                         as next5_expected_goals_for,
         avg(clean_sheet_prob)                           as next5_clean_sheet_prob
     from {{ ref('fct_team_next_fixtures') }}
+    where gw_index <= 5
     group by team_code
 ),
 
@@ -110,7 +111,8 @@ xpts as (
         player_id,
         sum(xpts) filter (where gameweek = (select min(gameweek) from {{ ref('fct_team_next_fixtures') }}))
                                                                  as xpts_next_gw,
-        sum(xpts)                                                as xpts_next5,
+        sum(xpts) filter (where gameweek in (select gameweek from {{ ref('fct_team_next_fixtures') }}
+                                            where gw_index <= 5)) as xpts_next5,
         avg(p_start) filter (where gameweek = (select min(gameweek) from {{ ref('fct_team_next_fixtures') }}))
                                                                  as p_start_next_gw
     from {{ ref('fct_player_expected_points') }}
