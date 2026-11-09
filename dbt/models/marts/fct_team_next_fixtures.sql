@@ -4,8 +4,10 @@
 {%- set this_season = var('season') | replace('_', '-') %}
 
 with upcoming as (
+    -- Not started (rather than not finished): between the final whistle and FPL confirming the
+    -- gameweek, a played match is neither finished nor upcoming, and must not be forecast.
     select * from {{ ref('stg_fpl__fixtures') }}
-    where not is_finished and gameweek is not null
+    where not is_started and gameweek is not null
 ),
 
 next_gws as (
