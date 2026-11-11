@@ -27,3 +27,9 @@ models:
 
   - name: int_player_fixture_points
     description: total_points split into 13 scoring categories (D23, D25, D27).
+
+  - name: int_player_component_features
+    description: Pre-match predictors for the per-component regressions (D116-D118), one row per player per fixture; see the model docstring.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [player_key, fixture_id]}

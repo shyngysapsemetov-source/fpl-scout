@@ -19,6 +19,9 @@ vars:
   xpts_prev_weight: 0      # fixed-weight previous-season prior: off (it hurt ranking)
   xpts_prev_w0: 6          # D95: last season worth 6 matches at GW1 ...
   xpts_prev_fade: 6        # ... fading to nothing after 6 fixtures
+  # D120: component models on (D119 A/B: best starters' rank on 2025/26 and 2026/27).
+  xpts_dc_model: true      # outfield DC = calibrated NB count model x DC points
+  xpts_ga_level_fix: true  # formula goals/assists x per-position level scale
 
 models:
   fpl_scout:

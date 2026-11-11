@@ -47,7 +47,13 @@ select
     g.expected_goals_conceded::double                         as xgc,
     nullif(g.defensive_contribution, '')::int                 as defensive_contribution,
     g.value::int / 10.0                                       as price,
-    g.xP::double                                              as fpl_xp
+    g.xP::double                                              as fpl_xp,
+    -- D117: ICT and crowd columns for the component regressions' derived features.
+    g.influence::double                                       as influence,
+    g.creativity::double                                      as creativity,
+    g.threat::double                                          as threat,
+    g.selected::int                                           as selected,
+    g.transfers_balance::int                                  as transfers_balance
 from {{ source('fpl_raw', 'history_player_gw') }} g
 join fixtures f on f.season = g.season and f.fixture_id = g.fixture::int
 join teams t on t.season = g.season

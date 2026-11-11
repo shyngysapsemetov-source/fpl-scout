@@ -1,0 +1,6 @@
+# Local analysis scripts in agent/ (not used by CI or the app).
+PuLP==3.3.0
+scikit-learn==1.9.1
+scipy==1.18.1
+statsmodels==0.15.0
+tabulate==0.10.0

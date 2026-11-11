@@ -23,6 +23,9 @@ with current_played as (
         f.red_cards, f.saves, f.bonus, f.bps, f.xg, f.xa, f.xgc, f.defensive_contribution,
         f.price,
         null::double                                          as fpl_xp,
+        f.influence, f.creativity, f.threat,
+        f.selected_count                                      as selected,
+        f.transfers_in - f.transfers_out                      as transfers_balance,
         false                                                 as is_upcoming
     from {{ ref('fct_player_fixtures') }} f
     join {{ ref('int_player_fixture_points') }} p using (player_id, fixture_id)
@@ -66,7 +69,8 @@ history as (
         kickoff_at, was_home, team_code, opponent_code, minutes, starts, total_points,
         goals_scored, assists, clean_sheets, goals_conceded, own_goals, penalties_saved,
         penalties_missed, yellow_cards, red_cards, saves, bonus, bps, xg, xa, xgc,
-        defensive_contribution, price, fpl_xp, false as is_upcoming
+        defensive_contribution, price, fpl_xp,
+        influence, creativity, threat, selected, transfers_balance, false as is_upcoming
     from {{ ref('stg_history__player_fixtures') }}
 )
 
