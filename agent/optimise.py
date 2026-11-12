@@ -5,7 +5,7 @@ Usage (also available as `scout.py optimise ...`):
   python agent/optimise.py transfers --team team.json [--bank 1.2] [--free 1] [--max-transfers 3]
 
 Objective: the weighted sum over the next `horizon` gameweeks (weights 1.0, 0.9, 0.8, 0.7,
-0.6, D97) of the starting XI's calibrated xPts, plus the captain's xPts again, plus 10% of
+0.6, D97; then 0.5 ... 0.1 up to 10 GWs, D121) of the starting XI's calibrated xPts, plus the captain's xPts again, plus 10% of
 the bench's xPts (D99). The XI and captain are chosen per gameweek; the 15 are held for the
 whole horizon (later transfers aren't modelled). Squad rules: 2 GKP, 5 DEF, 5 MID, 3 FWD, max 3
 per club, budget; each XI has 1 GK, 3+ DEF, 1+ FWD.
@@ -27,7 +27,7 @@ import pulp
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DB = pathlib.Path(os.environ.get("FPL_SCOUT_DB", ROOT / "data" / "dev.duckdb"))
-WEIGHTS = [1.0, 0.9, 0.8, 0.7, 0.6]
+WEIGHTS = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]   # D97; GW6-10 continue the step (D121)
 BENCH = 0.1
 QUOTA = {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
 
@@ -157,7 +157,8 @@ def main():
     t.add_argument("--free", type=int, default=1)
     t.add_argument("--max-transfers", type=int)
     for p in (s, t):
-        p.add_argument("--horizon", type=int, default=5)
+        p.add_argument("--horizon", type=int, default=5, choices=range(1, len(WEIGHTS) + 1),
+                       metavar="1-10", help="gameweeks ahead (max 10)")
         p.add_argument("--fix", nargs="*", default=[], help="players that must be in the squad")
         p.add_argument("--exclude", nargs="*", default=[], help="players to leave out")
     a = ap.parse_args()
